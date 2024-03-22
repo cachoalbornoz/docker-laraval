@@ -1,0 +1,115 @@
+version: "3.9"
+
+networks:
+    laravel:
+        name: laravel
+
+services:
+
+    nginx:
+        container_name: nginx
+        build:
+            context: .
+            dockerfile: nginx.dockerfile
+        depends_on:
+            - www
+            - mariadb
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+            - ./www:/var/www/html
+        networks:
+            - laravel
+
+#    apache:
+#        build:
+#            context: .
+#            dockerfile: apache.dockerfile
+#        container_name: apache
+#        ports:
+#            - 80:80
+#            - 443:443
+#        volumes:
+#            - ./www:/var/www/html
+#        networks:
+#            - virtual-fair
+
+    www:
+        container_name: www
+        build:
+            context: .
+            dockerfile: php.dockerfile
+        volumes:
+            - ./www:/var/www/html
+        networks:
+            - laravel
+    
+    mariadb:
+        container_name: mariadb
+        image: mariadb:10.9.6
+        restart: always
+        ports:
+            - '3306:3306'
+        command: --default-authentication-plugin=mysql_native_password --skip-log-bin --default-time-zone=-03:00 --expire_logs_days=10 --sql_mode="" --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --performance_schema=ON --event_scheduler=ON --log_error=/var/log/mysql/mysql_error.log --slow_query_log=1 --slow_query_log_file=/var/log/mysql/mysql_slow.log --long_query_time=10 --log_queries_not_using_indexes=1
+        environment:
+            - MYSQL_ROOT_PASSWORD=12345678
+            - MYSQL_PWD=12345678
+            - TZ=America/Argentina/Buenos_Aires
+        volumes:
+            - ./mariadb/data:/var/lib/mysql
+            - ./mariadb/dump:/docker-entrypoint-initdb.d
+            - ./mariadb/logs:/var/log/mysql:Z
+        networks:
+            - laravel
+
+    phpmyadmin:
+        container_name: phpmyadmin
+        image: phpmyadmin/phpmyadmin:5.2.1
+        restart: always
+        ports:
+            - '8181:80'
+        environment:
+            PMA_HOST: mariadb
+            UPLOAD_LIMIT: 100000000
+        networks:
+            - laravel
+
+    composer:
+        container_name: composer
+        image: composer:latest
+        volumes:
+            - ./www:/var/www/html
+        working_dir: /var/www/html
+        entrypoint: ['composer', 'install']
+        networks:
+            - laravel
+
+    artisan:
+        container_name: artisan
+        build:
+            context: .
+            dockerfile: php.dockerfile
+        volumes:
+            - ./www:/var/www/html
+        working_dir: /var/www/html
+        entrypoint: ['php', 'artisan']
+        networks:
+            - laravel
+
+    npm:
+        image: node:current-alpine
+        container_name: npm
+        volumes:
+            - ./www:/var/www/html
+        working_dir: /var/www/html
+        entrypoint: ['npm', 'install']
+        networks:
+            - laravel
+
+
+
+
+
+
+
